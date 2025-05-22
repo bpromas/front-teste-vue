@@ -195,7 +195,6 @@ const removeProduct = async (product) => {
             <textarea 
               v-model="editingProduct.description"
               class="w-full px-3 py-2 border rounded-md"
-              required
             ></textarea>
           </div>
           
@@ -204,6 +203,7 @@ const removeProduct = async (product) => {
             <input 
               v-model="editingProduct.price" 
               type="number" 
+              min="0"
               step="0.01"
               class="w-full px-3 py-2 border rounded-md"
               required
