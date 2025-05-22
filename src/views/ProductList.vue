@@ -43,7 +43,7 @@ const editingProduct = ref(null);
 const isEditModalOpen = ref(false);
 
 const openEditModal = (product) => {
-  editingProduct.value = product
+  editingProduct.value = JSON.parse(JSON.stringify(product));
   isEditModalOpen.value = true;
 };
 
