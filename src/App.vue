@@ -1,47 +1,227 @@
 <script setup>
-import HelloWorld from './components/HelloWorld.vue'
-import TheWelcome from './components/TheWelcome.vue'
+import { ref } from 'vue';
+import axios from 'axios';
+
+const products = ref([]);
+
+const fetchProducts = async () => {
+  try {
+    const response = await axios.get('http://localhost:3000/products');
+    products.value = response.data;
+  } catch (error) {
+    console.error('Error fetching products:', error);
+  }
+};
+
+fetchProducts();
+
+const isAddModalOpen = ref(false);
+const newProduct = ref({
+  name: '',
+  price: 0
+});
+
+const addProduct = async () => {
+  try {
+    const response = await axios.post('http://localhost:3000/products', newProduct.value);
+    
+    products.value.push(response.data);
+    
+    newProduct.value = { name: '', description: '', price: 0 };
+    isAddModalOpen.value = false;
+  } catch (error) {
+    console.error('Error adding product:', error);
+  }
+};
+
+const editingProduct = ref(null);
+const isEditModalOpen = ref(false);
+
+const openEditModal = (product) => {
+  editingProduct.value = product
+  isEditModalOpen.value = true;
+};
+
+const saveProduct = async () => {
+  try {
+    await axios.patch(
+      `http://localhost:3000/products/${editingProduct.value.id}`,
+      editingProduct.value
+    );
+    const index = products.value.findIndex(p => p.id === editingProduct.value.id);
+    if (index !== -1) {
+      products.value[index] = { ...editingProduct.value };
+    }
+    isEditModalOpen.value = false;
+  } catch (error) {
+    console.error('Error updating product:', error);
+  }
+};
+
+const removeProduct = async (product) => {
+  if(confirm(`Tem certeza que deseja deletar ${product.name}?`)){
+    try {
+      await axios.delete(`http://localhost:3000/products/${product.id}`);
+      products.value = products.value.filter(p => p.id !== product.id);
+    } catch (error) {
+      console.error('Erro ao deletar produto:', error);
+      alert("Erro ao deletar o produto");
+    }
+  }
+};
 </script>
 
 <template>
-  <header>
-    <img alt="Vue logo" class="logo" src="./assets/logo.svg" width="125" height="125" />
-
-    <div class="wrapper">
-      <HelloWorld msg="You did it!" />
+  <div class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold mb-8 text-gray-800">Product List</h1>
+    <button 
+      @click="isAddModalOpen = true"
+      class="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors"
+    >
+      Add Product
+    </button>
+    
+    <div class="bg-white rounded-lg shadow overflow-hidden">
+      <ul class="divide-y divide-gray-200">
+        <li 
+          v-for="product in products" 
+          :key="product.id" 
+          class="p-4 hover:bg-gray-50 transition-colors duration-150"
+        >
+          <div class="flex items-center justify-between">
+            <div class="flex-1 min-w-0">
+              <h3 class="text-lg font-medium text-gray-900 truncate">{{ product.name }}</h3>
+              <p class="text-gray-500 mt-1">${{ product.price.toFixed(2) }}</p>
+            </div>
+            
+            <div class="ml-4 flex-shrink-0 flex space-x-2">
+              <button 
+                @click="openEditModal(product)"
+                class="px-3 py-1 border border-blue-500 rounded-md text-blue-500 hover:bg-blue-50 transition-colors duration-150"
+              >
+                Edit
+              </button>
+              <button 
+                @click="removeProduct(product)"
+                class="px-3 py-1 border border-red-500 rounded-md text-red-500 hover:bg-red-50 transition-colors duration-150"
+              >
+                Remove
+              </button>
+            </div>
+          </div>
+        </li>
+      </ul>
     </div>
-  </header>
 
-  <main>
-    <TheWelcome />
-  </main>
+    <!-- Add Modal -->
+    <div v-if="isAddModalOpen" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
+      <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+        <h2 class="text-xl font-bold mb-4">Add New Product</h2>
+        
+        <form @submit.prevent="addProduct">
+          <div class="mb-4">
+            <label class="block text-gray-700 mb-2">Name</label>
+            <input 
+              v-model="newProduct.name" 
+              class="w-full px-3 py-2 border rounded-md"
+              placeholder="Product name"
+              required
+            >
+          </div>
+
+          <div class="mb-4">
+            <label class="block text-gray-700 mb-2">Description</label>
+            <textarea 
+              v-model="newProduct.description" 
+              class="w-full px-3 py-2 border rounded-md"
+              placeholder="Product description"
+            ></textarea>
+          </div>
+          
+          <div class="mb-4">
+            <label class="block text-gray-700 mb-2">Price</label>
+            <input 
+              v-model.number="newProduct.price" 
+              type="number" 
+              min="0"
+              step="0.01"
+              class="w-full px-3 py-2 border rounded-md"
+              placeholder="0.00"
+              required
+            >
+          </div>
+          
+          <div class="flex justify-end space-x-3">
+            <button 
+              type="button"
+              @click="isAddModalOpen = false"
+              class="px-4 py-2 text-gray-500 hover:text-gray-700"
+            >
+              Cancel
+            </button>
+            <button 
+              type="submit"
+              class="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600"
+            >
+              Add Product
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Edit Modal -->
+    <div v-if="isEditModalOpen" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
+      <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+        <h2 class="text-xl font-bold mb-4">Edit Product</h2>
+        
+        <form @submit.prevent="saveProduct">
+          <div class="mb-4">
+            <label class="block text-gray-700 mb-2">Name</label>
+            <input 
+              v-model="editingProduct.name" 
+              class="w-full px-3 py-2 border rounded-md"
+              required
+            >
+          </div>
+          
+          <div class="mb-4">
+            <label class="block text-gray-700 mb-2">Description</label>
+            <textarea 
+              v-model="editingProduct.description"
+              class="w-full px-3 py-2 border rounded-md"
+              required
+            ></textarea>
+          </div>
+          
+          <div class="mb-4">
+            <label class="block text-gray-700 mb-2">Price</label>
+            <input 
+              v-model="editingProduct.price" 
+              type="number" 
+              step="0.01"
+              class="w-full px-3 py-2 border rounded-md"
+              required
+            >
+          </div>
+          
+          <div class="flex justify-end space-x-3">
+            <button 
+              type="button"
+              @click="isEditModalOpen = false"
+              class="px-4 py-2 text-gray-500 hover:text-gray-700"
+            >
+              Cancel
+            </button>
+            <button 
+              type="submit"
+              class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+            >
+              Save
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
 </template>
-
-<style scoped>
-header {
-  line-height: 1.5;
-}
-
-.logo {
-  display: block;
-  margin: 0 auto 2rem;
-}
-
-@media (min-width: 1024px) {
-  header {
-    display: flex;
-    place-items: center;
-    padding-right: calc(var(--section-gap) / 2);
-  }
-
-  .logo {
-    margin: 0 2rem 0 0;
-  }
-
-  header .wrapper {
-    display: flex;
-    place-items: flex-start;
-    flex-wrap: wrap;
-  }
-}
-</style>
